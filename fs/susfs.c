@@ -14,6 +14,7 @@
 #include <linux/fdtable.h>
 #include <linux/statfs.h>
 #include <linux/susfs.h>
+#include <linux/workqueue.h>
 #include "mount.h"
 
 static spinlock_t susfs_spin_lock;
@@ -1055,3 +1056,17 @@ void ksu_selinux_hide_handle_post_fs_data(void)
 void ksu_selinux_hide_handle_second_stage(void)
 {
 }
+
+bool ksu_vfs_read_hook __weak __read_mostly = true;
+bool ksu_execveat_hook __weak __read_mostly = true;
+
+int __weak ksu_handle_devpts(struct inode *inode)
+{
+	return 0;
+}
+
+static void susfs_extra_work_fn(struct work_struct *work)
+{
+}
+
+struct work_struct susfs_extra_works __weak = __WORK_INITIALIZER(susfs_extra_works, susfs_extra_work_fn);
