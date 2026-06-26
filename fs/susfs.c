@@ -78,7 +78,7 @@ static int susfs_update_sus_path_inode(char *target_pathname) {
 	return 0;
 }
 
-int susfs_add_sus_path(struct st_susfs_sus_path* __user user_info) {
+int susfs_add_sus_path(void __user *user_info) {
 	struct st_susfs_sus_path info;
 	struct st_susfs_sus_path_hlist *new_entry, *tmp_entry;
 	struct hlist_node *tmp_node;
@@ -179,7 +179,7 @@ static void susfs_update_sus_mount_inode(char *target_pathname) {
 	path_put(&p);
 }
 
-int susfs_add_sus_mount(struct st_susfs_sus_mount* __user user_info) {
+int susfs_add_sus_mount(void __user *user_info) {
 	struct st_susfs_sus_mount_list *cursor = NULL, *temp = NULL;
 	struct st_susfs_sus_mount_list *new_list = NULL;
 	struct st_susfs_sus_mount info;
@@ -339,7 +339,7 @@ static int susfs_update_sus_kstat_inode(char *target_pathname) {
 	return 0;
 }
 
-int susfs_add_sus_kstat(struct st_susfs_sus_kstat* __user user_info) {
+int susfs_add_sus_kstat(void __user *user_info) {
 	struct st_susfs_sus_kstat info;
 	struct st_susfs_sus_kstat_hlist *new_entry, *tmp_entry;
 	struct hlist_node *tmp_node;
@@ -434,7 +434,7 @@ int susfs_add_sus_kstat(struct st_susfs_sus_kstat* __user user_info) {
 	return 0;
 }
 
-int susfs_update_sus_kstat(struct st_susfs_sus_kstat* __user user_info) {
+int susfs_update_sus_kstat(void __user *user_info) {
 	struct st_susfs_sus_kstat info;
 	struct st_susfs_sus_kstat_hlist *new_entry, *tmp_entry;
 	struct hlist_node *tmp_node;
@@ -523,7 +523,7 @@ void susfs_sus_ino_for_show_map_vma(unsigned long ino, dev_t *out_dev, unsigned 
 /* try_umount */
 #ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
 static LIST_HEAD(LH_TRY_UMOUNT_PATH);
-int susfs_add_try_umount(struct st_susfs_try_umount* __user user_info) {
+int susfs_add_try_umount(void __user *user_info) {
 	struct st_susfs_try_umount_list *cursor = NULL, *temp = NULL;
 	struct st_susfs_try_umount_list *new_list = NULL;
 	struct st_susfs_try_umount info;
@@ -659,7 +659,7 @@ static void susfs_my_uname_init(void) {
 	memset(&my_uname, 0, sizeof(my_uname));
 }
 
-int susfs_set_uname(struct st_susfs_uname* __user user_info) {
+int susfs_set_uname(void __user *user_info) {
 	struct st_susfs_uname info;
 
 	if (copy_from_user(&info, user_info, sizeof(struct st_susfs_uname))) {
@@ -709,7 +709,7 @@ void susfs_set_log(bool enabled) {
 /* spoof_cmdline_or_bootconfig */
 #ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
 static char *fake_cmdline_or_bootconfig = NULL;
-int susfs_set_cmdline_or_bootconfig(char* __user user_fake_cmdline_or_bootconfig) {
+int susfs_set_cmdline_or_bootconfig(void __user *user_fake_cmdline_or_bootconfig) {
 	int res;
 
 	if (!fake_cmdline_or_bootconfig) {
@@ -777,7 +777,7 @@ out_path_put_target:
 	return err;
 }
 
-int susfs_add_open_redirect(struct st_susfs_open_redirect* __user user_info) {
+int susfs_add_open_redirect(void __user *user_info) {
 	struct st_susfs_open_redirect info;
 	struct st_susfs_open_redirect_hlist *new_entry, *tmp_entry;
 	struct hlist_node *tmp_node;
@@ -852,7 +852,7 @@ int susfs_get_sus_su_working_mode(void) {
 	return susfs_sus_su_working_mode;
 }
 
-int susfs_sus_su(struct st_sus_su* __user user_info) {
+int susfs_sus_su(void __user *user_info) {
 	struct st_sus_su info;
 	int last_working_mode = susfs_sus_su_working_mode;
 
@@ -900,6 +900,109 @@ out:
 	return 1;
 }
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_SU
+
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+int susfs_add_sus_path_loop(void __user *user_info)
+{
+	return susfs_add_sus_path(user_info);
+}
+#endif
+
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+int susfs_set_hide_sus_mnts_for_non_su_procs(void __user *user_info)
+{
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+int susfs_enable_log(void __user *user_info)
+{
+	bool enabled = true;
+
+	if (user_info)
+		copy_from_user(&enabled, user_info, sizeof(enabled));
+	susfs_set_log(enabled);
+	return 0;
+}
+#endif
+
+int susfs_add_sus_map(void __user *user_info)
+{
+	return 0;
+}
+
+int susfs_set_avc_log_spoofing(void __user *user_info)
+{
+	return 0;
+}
+
+int susfs_get_enabled_features(void __user *user_info)
+{
+	u64 enabled_features = 0;
+
+#ifdef CONFIG_KSU_SUSFS_SUS_PATH
+	enabled_features |= (1ULL << 0);
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
+	enabled_features |= (1ULL << 1);
+#endif
+#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_KSU_DEFAULT_MOUNT
+	enabled_features |= (1ULL << 2);
+#endif
+#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_SUS_BIND_MOUNT
+	enabled_features |= (1ULL << 3);
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+	enabled_features |= (1ULL << 4);
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_OVERLAYFS
+	enabled_features |= (1ULL << 5);
+#endif
+#ifdef CONFIG_KSU_SUSFS_TRY_UMOUNT
+	enabled_features |= (1ULL << 6);
+#endif
+#ifdef CONFIG_KSU_SUSFS_AUTO_ADD_TRY_UMOUNT_FOR_BIND_MOUNT
+	enabled_features |= (1ULL << 7);
+#endif
+#ifdef CONFIG_KSU_SUSFS_SPOOF_UNAME
+	enabled_features |= (1ULL << 8);
+#endif
+#ifdef CONFIG_KSU_SUSFS_ENABLE_LOG
+	enabled_features |= (1ULL << 9);
+#endif
+#ifdef CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS
+	enabled_features |= (1ULL << 10);
+#endif
+#ifdef CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG
+	enabled_features |= (1ULL << 11);
+#endif
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+	enabled_features |= (1ULL << 12);
+#endif
+#ifdef CONFIG_KSU_SUSFS_SUS_MAP
+	enabled_features |= (1ULL << 13);
+#endif
+#ifdef CONFIG_KSU_SUSFS_HAS_MAGIC_MOUNT
+	enabled_features |= (1ULL << 14);
+#endif
+	return copy_to_user(user_info, &enabled_features, sizeof(enabled_features));
+}
+
+int susfs_show_variant(void __user *user_info)
+{
+	return copy_to_user(user_info, SUSFS_VARIANT, strlen(SUSFS_VARIANT) + 1);
+}
+
+int susfs_show_version(void __user *user_info)
+{
+	return copy_to_user(user_info, SUSFS_VERSION, strlen(SUSFS_VERSION) + 1);
+}
+
+void susfs_start_sdcard_monitor_fn(void)
+{
+}
 
 /* susfs_init */
 void susfs_init(void) {
