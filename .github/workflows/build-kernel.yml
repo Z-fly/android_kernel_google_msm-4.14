@@ -111,6 +111,27 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             ${{ inputs.extra_make_args }} \
             ${{ inputs.defconfig }}
+          scripts/config --file "$OUT_DIR/.config" \
+            --set-str LOCALVERSION "-SukiSU" \
+            --disable LOCALVERSION_AUTO
+          make O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }} \
+            olddefconfig
+          make -s O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }} \
+            kernelrelease
 
       - name: Build kernel
         run: |
