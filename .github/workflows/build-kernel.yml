@@ -1,0 +1,138 @@
+name: Build current kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      defconfig:
+        description: Kernel defconfig under arch/arm64/configs
+        required: true
+        default: floral_defconfig
+      image_name:
+        description: Kernel image artifact to upload from out/arch/arm64/boot
+        required: true
+        default: Image.lz4
+      make_jobs:
+        description: Parallel make jobs
+        required: true
+        default: "$(nproc)"
+      extra_make_args:
+        description: Extra make arguments, for example LLVM=1 LLVM_IAS=1
+        required: false
+        default: ""
+      sukisu_ref:
+        description: Optional SukiSU-Ultra branch, tag, or commit to checkout after cloning
+        required: false
+        default: susfs-main
+
+permissions:
+  contents: read
+
+env:
+  ARCH: arm64
+  SUBARCH: arm64
+  OUT_DIR: out
+  CLANG_BRANCH: master-kernel-build-2021
+  CLANG_VERSION: clang-r416183b
+  GCC_BRANCH: android-11.0.0_r48
+  SUKISU_REPOSITORY: https://github.com/SukiSU-Ultra/SukiSU-Ultra
+
+jobs:
+  build:
+    name: Build ${{ inputs.defconfig }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout current kernel
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            ccache \
+            flex \
+            git \
+            libelf-dev \
+            libssl-dev \
+            lld \
+            python3 \
+            zip \
+            zstd
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ inputs.defconfig }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.ref_name }}-${{ inputs.defconfig }}-
+            ccache-${{ runner.os }}-${{ github.ref_name }}-
+
+      - name: Fetch Android toolchains
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/toolchains"
+          git clone --depth=1 --branch "$CLANG_BRANCH" \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+            "$GITHUB_WORKSPACE/toolchains/clang"
+          git clone --depth=1 --branch "$GCC_BRANCH" \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            "$GITHUB_WORKSPACE/toolchains/gcc64"
+          git clone --depth=1 --branch "$GCC_BRANCH" \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
+            "$GITHUB_WORKSPACE/toolchains/gcc32"
+
+      - name: Fetch SukiSU-Ultra
+        run: |
+          rm -rf KernelSU
+          git clone --depth=1 "$SUKISU_REPOSITORY" KernelSU
+          if [ -n "${{ inputs.sukisu_ref }}" ]; then
+            git -C KernelSU fetch --depth=1 origin "${{ inputs.sukisu_ref }}" || true
+            git -C KernelSU checkout "${{ inputs.sukisu_ref }}" || \
+              echo "SukiSU-Ultra ref '${{ inputs.sukisu_ref }}' was not found; using repository default branch."
+          fi
+          test -f KernelSU/kernel/Kconfig
+          test -L drivers/kernelsu
+
+      - name: Configure kernel
+        run: |
+          export PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          make O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }} \
+            ${{ inputs.defconfig }}
+
+      - name: Build kernel
+        run: |
+          export PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          JOBS='${{ inputs.make_jobs }}'
+          if [ "$JOBS" = '$(nproc)' ]; then
+            JOBS="$(nproc)"
+          fi
+          make -j"$JOBS" O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }}
+
+      - name: Upload kernel image
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ inputs.defconfig }}-${{ github.run_number }}
+          path: |
+            ${{ env.OUT_DIR }}/arch/arm64/boot/${{ inputs.image_name }}
+            ${{ env.OUT_DIR }}/.config
+          if-no-files-found: error
