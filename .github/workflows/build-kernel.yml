@@ -66,6 +66,18 @@ jobs:
             zip \
             zstd
 
+      - name: Add swap space
+        run: |
+          sudo swapoff -a || true
+          sudo rm -f /swapfile
+          if ! sudo fallocate -l 12G /swapfile; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=12288 status=progress
+          fi
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
+
       - name: Cache ccache
         uses: actions/cache@v4
         with:
