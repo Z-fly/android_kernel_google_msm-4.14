@@ -99,9 +99,11 @@ jobs:
           rm -rf KernelSU
           git clone --depth=1 "$SUKISU_REPOSITORY" KernelSU
           if [ -n "${{ inputs.sukisu_ref }}" ]; then
-            git -C KernelSU fetch --depth=1 origin "${{ inputs.sukisu_ref }}" || true
-            git -C KernelSU checkout "${{ inputs.sukisu_ref }}" || \
+            if git -C KernelSU fetch --depth=1 origin "${{ inputs.sukisu_ref }}"; then
+              git -C KernelSU checkout --detach FETCH_HEAD
+            else
               echo "SukiSU-Ultra ref '${{ inputs.sukisu_ref }}' was not found; using repository default branch."
+            fi
           fi
           test -f KernelSU/kernel/Kconfig
           test -L drivers/kernelsu
