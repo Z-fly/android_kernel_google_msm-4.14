@@ -66,6 +66,23 @@ jobs:
             zip \
             zstd
 
+      - name: Free disk and add swap space
+        run: |
+          df -h
+          free -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache || true
+          sudo apt-get clean
+          sudo swapoff /swapfile || true
+          sudo rm -f /swapfile
+          if ! sudo fallocate -l 8G /swapfile; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress
+          fi
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          df -h
+          free -h
+
       - name: Cache ccache
         uses: actions/cache@v4
         with:
