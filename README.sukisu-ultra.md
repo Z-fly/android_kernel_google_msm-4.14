@@ -25,3 +25,5 @@ The GitHub Actions workflow does this automatically before configuring the kerne
 The workflow mirrors the upstream setup script behavior: it clones the SukiSU-Ultra repository first, then attempts to check out the requested `sukisu_ref`. If that ref is unavailable, the workflow continues with the repository default branch instead of failing before configuration.
 
 The workflow also sets `CONFIG_LOCALVERSION="-SukiSU"` and disables `CONFIG_LOCALVERSION_AUTO` after defconfig so the generated `UTS_RELEASE` stays below the Linux 64-character limit when the SukiSU-Ultra Git checkout is present.
+
+The workflow also uses Android `prebuilts/misc` for `DTC_EXT` and `DTC_OVERLAY_TEST_EXT`, matching the kernel build config expectations for Google device-tree overlays.

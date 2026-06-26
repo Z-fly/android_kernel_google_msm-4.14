@@ -35,6 +35,7 @@ env:
   CLANG_VERSION: clang-r416183b
   GCC_BRANCH: android-11.0.0_r48
   SUKISU_REPOSITORY: https://github.com/SukiSU-Ultra/SukiSU-Ultra
+  MISC_PREBUILTS: ${{ github.workspace }}/toolchains/misc/linux-x86
 
 jobs:
   build:
@@ -86,6 +87,11 @@ jobs:
           git clone --depth=1 --branch "$GCC_BRANCH" \
             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
             "$GITHUB_WORKSPACE/toolchains/gcc32"
+          git clone --depth=1 \
+            https://android.googlesource.com/platform/prebuilts/misc \
+            "$GITHUB_WORKSPACE/toolchains/misc"
+          test -x "$MISC_PREBUILTS/dtc/dtc"
+          test -x "$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
 
       - name: Fetch SukiSU-Ultra
         run: |
@@ -101,8 +107,10 @@ jobs:
 
       - name: Configure kernel
         run: |
-          export PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export PATH="$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
           export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
+          export DTC_EXT="$MISC_PREBUILTS/dtc/dtc"
+          export DTC_OVERLAY_TEST_EXT="$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
           make O="$OUT_DIR" \
             ARCH="$ARCH" \
             SUBARCH="$SUBARCH" \
@@ -139,8 +147,10 @@ jobs:
 
       - name: Build kernel
         run: |
-          export PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export PATH="$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
           export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
+          export DTC_EXT="$MISC_PREBUILTS/dtc/dtc"
+          export DTC_OVERLAY_TEST_EXT="$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
           JOBS='${{ inputs.make_jobs }}'
           if [ "$JOBS" = '$(nproc)' ]; then
             JOBS="$(nproc)"
