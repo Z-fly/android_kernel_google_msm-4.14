@@ -66,16 +66,21 @@ jobs:
             zip \
             zstd
 
-      - name: Add swap space
+      - name: Free disk and add swap space
         run: |
-          sudo swapoff -a || true
+          df -h
+          free -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache || true
+          sudo apt-get clean
+          sudo swapoff /swapfile || true
           sudo rm -f /swapfile
-          if ! sudo fallocate -l 12G /swapfile; then
-            sudo dd if=/dev/zero of=/swapfile bs=1M count=12288 status=progress
+          if ! sudo fallocate -l 8G /swapfile; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress
           fi
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
+          df -h
           free -h
 
       - name: Cache ccache
