@@ -189,6 +189,12 @@ int susfs_get_enabled_features(void __user *user_info);
 int susfs_show_variant(void __user *user_info);
 int susfs_show_version(void __user *user_info);
 void susfs_start_sdcard_monitor_fn(void);
+bool susfs_starts_with(const char *str, const char *prefix);
+bool susfs_ends_with(const char *str, const char *suffix);
+bool susfs_is_current_proc_umounted(void);
+void susfs_set_current_proc_umounted(void);
+void ksu_selinux_hide_handle_post_fs_data(void);
+void ksu_selinux_hide_handle_second_stage(void);
 
 /* susfs_init */
 void susfs_init(void);

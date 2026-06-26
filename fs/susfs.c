@@ -1017,3 +1017,41 @@ void susfs_init(void) {
 /* No module exit is needed becuase it should never be a loadable kernel module */
 //void __init susfs_exit(void)
 
+
+bool susfs_starts_with(const char *str, const char *prefix)
+{
+	if (!str || !prefix)
+		return false;
+	return strncmp(str, prefix, strlen(prefix)) == 0;
+}
+
+bool susfs_ends_with(const char *str, const char *suffix)
+{
+	size_t str_len, suffix_len;
+
+	if (!str || !suffix)
+		return false;
+	str_len = strlen(str);
+	suffix_len = strlen(suffix);
+	if (str_len < suffix_len)
+		return false;
+	return strcmp(str + str_len - suffix_len, suffix) == 0;
+}
+
+bool susfs_is_current_proc_umounted(void)
+{
+	return current->susfs_task_state & TASK_STRUCT_PROC_UMOUNTED;
+}
+
+void susfs_set_current_proc_umounted(void)
+{
+	current->susfs_task_state |= TASK_STRUCT_PROC_UMOUNTED;
+}
+
+void ksu_selinux_hide_handle_post_fs_data(void)
+{
+}
+
+void ksu_selinux_hide_handle_second_stage(void)
+{
+}
