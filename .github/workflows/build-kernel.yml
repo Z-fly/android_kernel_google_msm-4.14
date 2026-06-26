@@ -74,8 +74,8 @@ jobs:
           sudo apt-get clean
           sudo swapoff /swapfile || true
           sudo rm -f /swapfile
-          if ! sudo fallocate -l 8G /swapfile; then
-            sudo dd if=/dev/zero of=/swapfile bs=1M count=8192 status=progress
+          if ! sudo fallocate -l 23G /swapfile; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=23000 status=progress
           fi
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
