@@ -102,10 +102,12 @@ jobs:
       - name: Configure kernel
         run: |
           export PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
           make O="$OUT_DIR" \
             ARCH="$ARCH" \
             SUBARCH="$SUBARCH" \
             CC="ccache clang" \
+            LD=ld.lld \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
@@ -118,6 +120,7 @@ jobs:
             ARCH="$ARCH" \
             SUBARCH="$SUBARCH" \
             CC="ccache clang" \
+            LD=ld.lld \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
@@ -127,6 +130,7 @@ jobs:
             ARCH="$ARCH" \
             SUBARCH="$SUBARCH" \
             CC="ccache clang" \
+            LD=ld.lld \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
@@ -136,6 +140,7 @@ jobs:
       - name: Build kernel
         run: |
           export PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
           JOBS='${{ inputs.make_jobs }}'
           if [ "$JOBS" = '$(nproc)' ]; then
             JOBS="$(nproc)"
@@ -144,6 +149,7 @@ jobs:
             ARCH="$ARCH" \
             SUBARCH="$SUBARCH" \
             CC="ccache clang" \
+            LD=ld.lld \
             CLANG_TRIPLE=aarch64-linux-gnu- \
             CROSS_COMPILE=aarch64-linux-android- \
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
