@@ -1,31 +1,56 @@
-# SukiSU-Ultra / SUSFS integration
+# SukiSU-Ultra / SUSFS 集成说明
 
-This kernel tree is wired to build with the SukiSU-Ultra `builtin` kernel source layout.
+本内核源码树已按 SukiSU-Ultra 的 `builtin` 内核源码布局接入，并针对 4.14 Non-GKI 内核启用 Manual hook 与 SUSFS。
 
-The upstream setup command is:
+## 上游接入方式
+
+SukiSU-Ultra 上游文档要求 Non-GKI / 内置内核使用 `builtin` 参数拉取内核侧源码：
 
 ```sh
 curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s builtin
 ```
 
-The repository keeps the kernel build-system wiring in-tree:
+仓库中的固定接入点如下：
 
-- `drivers/Makefile` builds `drivers/kernelsu/` when `CONFIG_KSU` is enabled.
-- `drivers/Kconfig` sources `drivers/kernelsu/Kconfig` so SukiSU-Ultra options are visible to Kconfig.
-- `drivers/kernelsu` is a symlink to `../KernelSU/kernel`.
+- `drivers/Kconfig` 会 source `drivers/kernelsu/Kconfig`，因此 SukiSU-Ultra 配置项会出现在 Kconfig 中。
+- `drivers/Makefile` 会在启用 `CONFIG_KSU` 时编译 `drivers/kernelsu`。
+- `drivers/kernelsu` 是指向 `../KernelSU/kernel` 的符号链接。
+- `arch/arm64/configs/vendor/atoll_defconfig` 默认启用 `CONFIG_KSU`、`CONFIG_KSU_MANUAL_HOOK` 与基础 SUSFS 选项。
 
-For local builds, populate `KernelSU` before running `make *defconfig`:
+本地编译前需要先准备 `KernelSU` 目录：
 
 ```sh
 git clone --depth=1 --branch builtin https://github.com/SukiSU-Ultra/SukiSU-Ultra KernelSU
 ```
 
-The GitHub Actions workflow does this automatically before configuring the kernel, so CI has `drivers/kernelsu/Kconfig` available during `defconfig`.
+## Manual hook
 
-The workflow mirrors the upstream setup script behavior: it clones the SukiSU-Ultra repository first, then fetches the requested `sukisu_ref` and checks out `FETCH_HEAD`. If that ref is unavailable, the workflow continues with the repository default branch instead of failing before configuration.
+当前树按 Manual hook 接入，不依赖 kprobes。为避免手动 hook 与 kprobe hook 同时生效，`atoll_defconfig` 中已关闭 `CONFIG_KPROBES`，并启用 `CONFIG_KSU_MANUAL_HOOK`。
 
-The workflow also sets `CONFIG_LOCALVERSION="-SukiSU"` and disables `CONFIG_LOCALVERSION_AUTO` after defconfig so the generated `UTS_RELEASE` stays below the Linux 64-character limit when the SukiSU-Ultra Git checkout is present.
+已接入的 Manual hook 位置包括：
 
-The workflow also uses Android `prebuilts/misc` for `DTC_EXT`, `DTC_OVERLAY_TEST_EXT`, and `mkdtimg`, matching the kernel build config expectations for Google device-tree overlays.
+- `fs/exec.c`：`do_execveat_common()`
+- `fs/open.c`：`faccessat` syscall
+- `fs/read_write.c`：`vfs_read()`
+- `fs/stat.c`：`vfs_fstatat()`
+- `drivers/input/input.c`：`input_handle_event()` 安全模式入口
+- `fs/devpts/inode.c`：`devpts_get_priv()` 兼容入口
 
-The default workflow `sukisu_ref` is `builtin` because SukiSU-Ultra currently exposes `main`, `builtin`, `dev`, and `old` branches; `susfs-main` is documented as an experimental setup argument but is not a remote branch to check out directly.
+## SUSFS
+
+已导入 `susfs4ksu` 的 `kernel-4.14` 分支补丁，包含：
+
+- `include/linux/susfs.h`
+- `include/linux/susfs_def.h`
+- `include/linux/sus_su.h`
+- `fs/susfs.c`
+- `fs/sus_su.c`
+- 对 VFS、procfs、overlayfs、namespace、stat、kallsyms 等位置的 SUSFS hook
+
+这样可以解决启用 `CONFIG_KSU_SUSFS` 后编译 SukiSU-Ultra 时缺少 `linux/susfs.h` / `linux/susfs_def.h` 的问题。
+
+## GitHub Actions 注意事项
+
+工作流中的默认 `sukisu_ref` 仍应使用 `builtin`，因为 SukiSU-Ultra 远端实际提供的是 `main`、`builtin`、`dev`、`old` 等分支；`susfs-main` 是 setup 脚本的实验参数，并不是可直接 checkout 的远端分支。
+
+工作流在 defconfig 后还会设置 `CONFIG_LOCALVERSION="-SukiSU"` 并关闭 `CONFIG_LOCALVERSION_AUTO`，避免存在 SukiSU-Ultra Git checkout 时生成的 `UTS_RELEASE` 超过 Linux 64 字符限制。
