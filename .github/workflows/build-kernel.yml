@@ -22,7 +22,7 @@ on:
       sukisu_ref:
         description: Optional SukiSU-Ultra branch, tag, or commit to checkout after cloning
         required: false
-        default: susfs-main
+        default: builtin
 
 permissions:
   contents: read
@@ -92,6 +92,7 @@ jobs:
             "$GITHUB_WORKSPACE/toolchains/misc"
           test -x "$MISC_PREBUILTS/dtc/dtc"
           test -x "$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
+          test -x "$MISC_PREBUILTS/libufdt/mkdtimg"
 
       - name: Fetch SukiSU-Ultra
         run: |
@@ -107,7 +108,7 @@ jobs:
 
       - name: Configure kernel
         run: |
-          export PATH="$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export PATH="$MISC_PREBUILTS/libufdt:$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
           export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
           export DTC_EXT="$MISC_PREBUILTS/dtc/dtc"
           export DTC_OVERLAY_TEST_EXT="$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
@@ -147,7 +148,7 @@ jobs:
 
       - name: Build kernel
         run: |
-          export PATH="$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export PATH="$MISC_PREBUILTS/libufdt:$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
           export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
           export DTC_EXT="$MISC_PREBUILTS/dtc/dtc"
           export DTC_OVERLAY_TEST_EXT="$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
