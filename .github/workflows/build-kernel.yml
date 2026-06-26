@@ -111,11 +111,26 @@ jobs:
           git clone --depth=1 --branch "$CLANG_BRANCH" \
             https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
             "$GITHUB_WORKSPACE/toolchains/clang"
-          git clone --depth=1 --branch "$GCC_BRANCH" \
+          checkout_android_tag() {
+            local repo_url="$1"
+            local tag_name="$2"
+            local dest_dir="$3"
+
+            git init -q "$dest_dir"
+            git -C "$dest_dir" remote add origin "$repo_url"
+            git -C "$dest_dir" fetch -q --no-tags --depth=1 origin \
+              "refs/tags/${tag_name}:refs/tags/${tag_name}"
+            git -C "$dest_dir" -c advice.detachedHead=false checkout -q --detach \
+              "${tag_name}^{}"
+          }
+
+          checkout_android_tag \
             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            "$GCC_BRANCH" \
             "$GITHUB_WORKSPACE/toolchains/gcc64"
-          git clone --depth=1 --branch "$GCC_BRANCH" \
+          checkout_android_tag \
             https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
+            "$GCC_BRANCH" \
             "$GITHUB_WORKSPACE/toolchains/gcc32"
           git clone --depth=1 \
             https://android.googlesource.com/platform/prebuilts/misc \
