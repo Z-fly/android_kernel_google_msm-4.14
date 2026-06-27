@@ -1,0 +1,273 @@
+name: Build current kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      defconfig:
+        description: Kernel defconfig under arch/arm64/configs
+        required: true
+        default: floral_defconfig
+      image_name:
+        description: Kernel image artifact to upload from out/arch/arm64/boot
+        required: true
+        default: Image.lz4
+      anykernel_ref:
+        description: AnyKernel3 branch, tag, or commit to package the kernel image
+        required: false
+        default: master
+      make_jobs:
+        description: Parallel make jobs
+        required: true
+        default: "$(nproc)"
+      extra_make_args:
+        description: Extra make arguments, for example LLVM=1 LLVM_IAS=1
+        required: false
+        default: ""
+      kernelsu_ref:
+        description: KernelSU branch, tag, or commit to checkout when updating the submodule
+        required: false
+        default: v0.9.5
+
+permissions:
+  contents: read
+
+env:
+  ARCH: arm64
+  SUBARCH: arm64
+  OUT_DIR: out
+  CLANG_BRANCH: master-kernel-build-2021
+  CLANG_VERSION: clang-r416183b
+  GCC_BRANCH: android-11.0.0_r48
+    MISC_PREBUILTS: ${{ github.workspace }}/toolchains/misc/linux-x86
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  ANYKERNEL3_REPOSITORY: https://github.com/osm0sis/AnyKernel3
+
+jobs:
+  build:
+    name: Build ${{ inputs.defconfig }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout current kernel
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bc \
+            bison \
+            build-essential \
+            ccache \
+            flex \
+            git \
+            libelf-dev \
+            libssl-dev \
+            lld \
+            python3 \
+            zip \
+            zstd
+
+      - name: Free disk and add swap space
+        run: |
+          df -h
+          free -h
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache || true
+          sudo apt-get clean
+          sudo swapoff /swapfile || true
+          sudo rm -f /swapfile
+          if ! sudo fallocate -l 23G /swapfile; then
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=23000 status=progress
+          fi
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          df -h
+          free -h
+
+      - name: Prepare ccache
+        run: |
+          mkdir -p "$CCACHE_DIR"
+          ccache --set-config=max_size=5G
+          ccache --zero-stats
+
+      - name: Cache ccache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-${{ runner.os }}-${{ github.ref_name }}-${{ inputs.defconfig }}-${{ hashFiles(format('arch/arm64/configs/{0}', inputs.defconfig), '.github/workflows/build-kernel.yml') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.ref_name }}-${{ inputs.defconfig }}-
+            ccache-${{ runner.os }}-${{ github.ref_name }}-
+            ccache-${{ runner.os }}-
+
+      - name: Fetch Android toolchains
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/toolchains"
+          git clone --depth=1 --branch "$CLANG_BRANCH" \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+            "$GITHUB_WORKSPACE/toolchains/clang"
+          checkout_android_tag() {
+            local repo_url="$1"
+            local tag_name="$2"
+            local dest_dir="$3"
+
+            git init -q "$dest_dir"
+            git -C "$dest_dir" remote add origin "$repo_url"
+            git -C "$dest_dir" fetch -q --no-tags --depth=1 origin \
+              "refs/tags/${tag_name}:refs/tags/${tag_name}"
+            git -C "$dest_dir" -c advice.detachedHead=false checkout -q --detach \
+              "${tag_name}^{}"
+          }
+
+          checkout_android_tag \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            "$GCC_BRANCH" \
+            "$GITHUB_WORKSPACE/toolchains/gcc64"
+          checkout_android_tag \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
+            "$GCC_BRANCH" \
+            "$GITHUB_WORKSPACE/toolchains/gcc32"
+          git clone --depth=1 \
+            https://android.googlesource.com/platform/prebuilts/misc \
+            "$GITHUB_WORKSPACE/toolchains/misc"
+          test -x "$MISC_PREBUILTS/dtc/dtc"
+          test -x "$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
+          test -x "$MISC_PREBUILTS/libufdt/mkdtimg"
+
+      - name: Fetch KernelSU
+        run: |
+          git submodule sync --recursive
+          git submodule update --init --recursive KernelSU
+          git -C KernelSU fetch --unshallow --tags || git -C KernelSU fetch --tags || true
+          if [ -n "${{ inputs.kernelsu_ref }}" ]; then
+            git -C KernelSU fetch --tags origin "${{ inputs.kernelsu_ref }}"
+            git -C KernelSU checkout --detach FETCH_HEAD
+          fi
+          test -f KernelSU/kernel/Kconfig
+          test -L drivers/kernelsu
+
+      - name: Configure kernel
+        run: |
+          export PATH="$MISC_PREBUILTS/libufdt:$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
+          export DTC_EXT="$MISC_PREBUILTS/dtc/dtc"
+          export DTC_OVERLAY_TEST_EXT="$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
+          make O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            LD=ld.lld \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }} \
+            ${{ inputs.defconfig }}
+          scripts/config --file "$OUT_DIR/.config" \
+            --set-str LOCALVERSION "-KernelSU" \
+            --disable LOCALVERSION_AUTO
+          make O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            LD=ld.lld \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }} \
+            olddefconfig
+          make -s O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            LD=ld.lld \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }} \
+            kernelrelease
+
+      - name: Build kernel
+        run: |
+          export PATH="$MISC_PREBUILTS/libufdt:$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
+          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/lib64:${LD_LIBRARY_PATH:-}"
+          export DTC_EXT="$MISC_PREBUILTS/dtc/dtc"
+          export DTC_OVERLAY_TEST_EXT="$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
+          JOBS='${{ inputs.make_jobs }}'
+          if [ "$JOBS" = '$(nproc)' ]; then
+            JOBS="$(nproc)"
+          fi
+          make -j"$JOBS" O="$OUT_DIR" \
+            ARCH="$ARCH" \
+            SUBARCH="$SUBARCH" \
+            CC="ccache clang" \
+            LD=ld.lld \
+            CLANG_TRIPLE=aarch64-linux-gnu- \
+            CROSS_COMPILE=aarch64-linux-android- \
+            CROSS_COMPILE_ARM32=arm-linux-androideabi- \
+            ${{ inputs.extra_make_args }}
+
+      - name: Show ccache statistics
+        if: always()
+        run: ccache --show-stats
+
+      - name: Package AnyKernel3 flashable zip
+        run: |
+          IMAGE_PATH="$OUT_DIR/arch/arm64/boot/${{ inputs.image_name }}"
+          test -f "$IMAGE_PATH"
+          rm -rf AnyKernel3
+          git clone --depth=1 "$ANYKERNEL3_REPOSITORY" AnyKernel3
+          if [ -n "${{ inputs.anykernel_ref }}" ]; then
+            if git -C AnyKernel3 fetch --depth=1 origin "${{ inputs.anykernel_ref }}"; then
+              git -C AnyKernel3 checkout --detach FETCH_HEAD
+            else
+              echo "AnyKernel3 ref '${{ inputs.anykernel_ref }}' was not found; using repository default branch."
+            fi
+          fi
+          rm -rf AnyKernel3/.git AnyKernel3/.github AnyKernel3/README.md
+          cp "$IMAGE_PATH" AnyKernel3/
+          cat > AnyKernel3/anykernel.sh <<'EOF'
+          ### AnyKernel3 Ramdisk Mod Script
+          ### main floral kernel with KernelSU 0.9.5
+
+          properties() { '
+          kernel.string=main floral kernel with KernelSU 0.9.5
+          do.devicecheck=1
+          do.modules=0
+          do.systemless=1
+          do.cleanup=1
+          do.cleanuponabort=0
+          device.name1=floral
+          device.name2=flame
+          device.name3=
+          device.name4=
+          device.name5=
+          supported.versions=
+          supported.patchlevels=
+          supported.vendorpatchlevels=
+          '; }
+
+          BLOCK=boot;
+          IS_SLOT_DEVICE=1;
+          RAMDISK_COMPRESSION=auto;
+          PATCH_VBMETA_FLAG=auto;
+
+          . tools/ak3-core.sh;
+
+          dump_boot;
+          write_boot;
+          EOF
+          (cd AnyKernel3 && zip -r9 "$GITHUB_WORKSPACE/AnyKernel3-${{ inputs.defconfig }}-${{ github.run_number }}.zip" . -x '*.git*' 'README.md')
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: kernel-${{ inputs.defconfig }}-${{ github.run_number }}
+          path: |
+            ${{ env.OUT_DIR }}/arch/arm64/boot/${{ inputs.image_name }}
+            ${{ env.OUT_DIR }}/.config
+            AnyKernel3-${{ inputs.defconfig }}-${{ github.run_number }}.zip
+          if-no-files-found: error
