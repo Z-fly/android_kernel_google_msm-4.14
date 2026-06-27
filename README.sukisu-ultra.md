@@ -15,7 +15,7 @@ curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kern
 - `drivers/Kconfig` 会 source `drivers/kernelsu/Kconfig`，因此 SukiSU-Ultra 配置项会出现在 Kconfig 中。
 - `drivers/Makefile` 会在启用 `CONFIG_KSU` 时编译 `drivers/kernelsu`。
 - `drivers/kernelsu` 是指向 `../KernelSU/kernel` 的符号链接。
-- `arch/arm64/configs/vendor/atoll_defconfig` 默认启用 `CONFIG_KSU`、`CONFIG_KSU_MANUAL_HOOK` 与基础 SUSFS 选项。
+- `arch/arm64/configs/floral_defconfig` 和 `arch/arm64/configs/vendor/atoll_defconfig` 默认启用 `CONFIG_KSU`、`CONFIG_KSU_MANUAL_HOOK` 与基础 SUSFS 选项。
 
 本地编译前需要先准备 `KernelSU` 目录：
 
@@ -25,7 +25,7 @@ git clone --depth=1 --branch builtin https://github.com/SukiSU-Ultra/SukiSU-Ultr
 
 ## Manual hook
 
-当前树按 Manual hook 接入，不依赖 kprobes。为避免手动 hook 与 kprobe hook 同时生效，`atoll_defconfig` 中已关闭 `CONFIG_KPROBES`，并启用 `CONFIG_KSU_MANUAL_HOOK`。
+当前树按 Manual hook 接入，不依赖 kprobes。为避免手动 hook 与 kprobe hook 同时生效，`floral_defconfig` 和 `atoll_defconfig` 中已关闭 `CONFIG_KPROBES`，并启用 `CONFIG_KSU_MANUAL_HOOK`。
 
 已接入的 Manual hook 位置包括：
 
@@ -35,6 +35,8 @@ git clone --depth=1 --branch builtin https://github.com/SukiSU-Ultra/SukiSU-Ultr
 - `fs/stat.c`：`vfs_fstatat()`
 - `drivers/input/input.c`：`input_handle_event()` 安全模式入口
 - `fs/devpts/inode.c`：`devpts_get_priv()` 兼容入口
+- `kernel/sys.c`：`setresuid()`，用于 SUSFS 模式下给管理器安装 KernelSU fd
+- `kernel/reboot.c`：`reboot()` supercall 入口
 
 ## SUSFS
 
