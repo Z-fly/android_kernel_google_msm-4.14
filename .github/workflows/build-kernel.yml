@@ -38,7 +38,7 @@ env:
   CLANG_BRANCH: master-kernel-build-2021
   CLANG_VERSION: clang-r416183b
   GCC_BRANCH: android-11.0.0_r48
-    MISC_PREBUILTS: ${{ github.workspace }}/toolchains/misc/linux-x86
+  MISC_PREBUILTS: ${{ github.workspace }}/toolchains/misc/linux-x86
   CCACHE_DIR: ${{ github.workspace }}/.ccache
   ANYKERNEL3_REPOSITORY: https://github.com/osm0sis/AnyKernel3
 
