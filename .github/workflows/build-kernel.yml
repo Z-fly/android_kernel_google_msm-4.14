@@ -190,7 +190,7 @@ jobs:
             --disable KSU_MANUAL_HOOK_AUTO_SETUID_HOOK \
             --disable KSU_MANUAL_HOOK_AUTO_INITRC_HOOK \
             --disable KSU_MANUAL_HOOK_AUTO_INPUT_HOOK \
-            --set-str LOCALVERSION "-ReSukiSU" \
+            --set-str LOCALVERSION "-LineageOS23-SukiSU" \
             --disable LOCALVERSION_AUTO
 
           make O="$OUT_DIR" \
