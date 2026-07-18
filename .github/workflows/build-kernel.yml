@@ -73,20 +73,14 @@ jobs:
 
       - name: Free disk and add swap
         run: |
-          df -h
-          free -h
           sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache || true
           sudo apt-get clean
           sudo swapoff /swapfile || true
           sudo rm -f /swapfile
-          if ! sudo fallocate -l 23G /swapfile; then
-            sudo dd if=/dev/zero of=/swapfile bs=1M count=23000 status=progress
-          fi
+          sudo fallocate -l 23G /swapfile
           sudo chmod 600 /swapfile
           sudo mkswap /swapfile
           sudo swapon /swapfile
-          df -h
-          free -h
 
       - name: Prepare ccache
         run: |
@@ -321,7 +315,5 @@ jobs:
         with:
           name: ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}
           path: |
-            ${{ env.OUT_DIR }}/arch/arm64/boot/${{ inputs.image_name }}
-            ${{ env.OUT_DIR }}/.config
             AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
           if-no-files-found: error
