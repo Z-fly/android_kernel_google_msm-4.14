@@ -179,6 +179,7 @@ jobs:
           scripts/config --file "$OUT_DIR/.config" \
             --enable KSU \
             --enable KSU_MANUAL_HOOK \
+            --enable USER_NS \
             --disable KSU_TRACEPOINT_HOOK \
             --disable KSU_SUSFS \
             --disable KSU_MANUAL_HOOK_AUTO_SETUID_HOOK \
@@ -200,6 +201,7 @@ jobs:
 
           grep -qx 'CONFIG_KSU=y' "$OUT_DIR/.config"
           grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' "$OUT_DIR/.config"
+          grep -qx 'CONFIG_USER_NS=y' "$OUT_DIR/.config"
           grep -qx '# CONFIG_KSU_TRACEPOINT_HOOK is not set' "$OUT_DIR/.config"
           grep -qx '# CONFIG_KSU_SUSFS is not set' "$OUT_DIR/.config"
           grep -qx '# CONFIG_KSU_MANUAL_HOOK_AUTO_SETUID_HOOK is not set' "$OUT_DIR/.config"
@@ -311,9 +313,8 @@ jobs:
           (cd AnyKernel3 && zip -r9 "$GITHUB_WORKSPACE/$ZIP_NAME" . -x '*.git*' 'README.md')
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
-          name: ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}
-          path: |
-            AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
+          path: AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
+          archive: false
           if-no-files-found: error
