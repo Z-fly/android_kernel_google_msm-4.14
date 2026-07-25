@@ -311,9 +311,8 @@ jobs:
           (cd AnyKernel3 && zip -r9 "$GITHUB_WORKSPACE/$ZIP_NAME" . -x '*.git*' 'README.md')
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
-          name: ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}
-          path: |
-            AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
+          path: AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
+          archive: false
           if-no-files-found: error
