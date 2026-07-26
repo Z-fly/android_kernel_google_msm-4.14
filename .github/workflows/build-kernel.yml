@@ -1,4 +1,4 @@
-name: Build ReSukiSU kernel
+name: Build SukiSU kernel
 
 on:
   workflow_dispatch:
@@ -133,7 +133,7 @@ jobs:
           test -x "$MISC_PREBUILTS/libufdt/ufdt_apply_overlay"
           test -x "$MISC_PREBUILTS/libufdt/mkdtimg"
 
-      - name: Fetch ReSukiSU
+      - name: Fetch SukiSU
         env:
           RESUKISU_REF: ${{ inputs.resukisu_ref }}
         run: |
@@ -177,13 +177,6 @@ jobs:
             ${{ inputs.defconfig }}
 
           scripts/config --file "$OUT_DIR/.config" \
-            --enable KSU \
-            --enable KSU_MANUAL_HOOK \
-            --disable KSU_TRACEPOINT_HOOK \
-            --disable KSU_SUSFS \
-            --disable KSU_MANUAL_HOOK_AUTO_SETUID_HOOK \
-            --disable KSU_MANUAL_HOOK_AUTO_INITRC_HOOK \
-            --disable KSU_MANUAL_HOOK_AUTO_INPUT_HOOK \
             --set-str LOCALVERSION "-SukiSU" \
             --disable LOCALVERSION_AUTO
 
@@ -197,14 +190,6 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-androideabi- \
             ${{ inputs.extra_make_args }} \
             olddefconfig
-
-          grep -qx 'CONFIG_KSU=y' "$OUT_DIR/.config"
-          grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' "$OUT_DIR/.config"
-          grep -qx '# CONFIG_KSU_TRACEPOINT_HOOK is not set' "$OUT_DIR/.config"
-          grep -qx '# CONFIG_KSU_SUSFS is not set' "$OUT_DIR/.config"
-          grep -qx '# CONFIG_KSU_MANUAL_HOOK_AUTO_SETUID_HOOK is not set' "$OUT_DIR/.config"
-          grep -qx '# CONFIG_KSU_MANUAL_HOOK_AUTO_INITRC_HOOK is not set' "$OUT_DIR/.config"
-          grep -qx '# CONFIG_KSU_MANUAL_HOOK_AUTO_INPUT_HOOK is not set' "$OUT_DIR/.config"
 
           make -s O="$OUT_DIR" \
             ARCH="$ARCH" \
@@ -277,10 +262,10 @@ jobs:
           cp "$IMAGE_PATH" AnyKernel3/
           cat > AnyKernel3/anykernel.sh <<EOF
           ### AnyKernel3 Ramdisk Mod Script
-          ### Pixel 4/4 XL/4a kernel with ReSukiSU
+          ### Pixel 4/4 XL/4a kernel with SukiSU
 
           properties() { '
-          kernel.string=Pixel kernel with ReSukiSU manual hooks
+          kernel.string=Pixel kernel with SukiSU manual hooks
           do.devicecheck=1
           do.modules=0
           do.systemless=1
@@ -307,12 +292,12 @@ jobs:
           write_boot;
           EOF
 
-          ZIP_NAME="AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip"
+          ZIP_NAME="AnyKernel3-SukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip"
           (cd AnyKernel3 && zip -r9 "$GITHUB_WORKSPACE/$ZIP_NAME" . -x '*.git*' 'README.md')
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
-          path: AnyKernel3-ReSukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
+          path: AnyKernel3-SukiSU-${{ inputs.defconfig }}-${{ github.run_number }}.zip
           archive: false
           if-no-files-found: error
