@@ -339,15 +339,15 @@ extern int ksu_handle_sys_reboot(int magic1, int magic2, unsigned int cmd, void 
         elif grep -rq --include="*.c" --include="*.h" "ksu_handle_setresuid" "drivers/kernelsu/" >/dev/null 2>&1; then
 
             if grep -q "__sys_setresuid" "kernel/sys.c" >/dev/null 2>&1; then
-                sed -i '/long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)/i\#ifdef CONFIG_KSU\nextern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n#endif\n' kernel/sys.c
+                sed -i '/long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)/i\#if defined(CONFIG_KSU) \&\& defined(CONFIG_KSU_SUSFS)\nextern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n#endif\n' kernel/sys.c
                 if grep -q "ruid_new" "kernel/sys.c"; then
-                    sed -i '/bool ruid_new, euid_new, suid_new;/a\#ifdef CONFIG_KSU\n\t(void)ksu_handle_setresuid(ruid, euid, suid);\n#endif\n' kernel/sys.c
+                    sed -i '/bool ruid_new, euid_new, suid_new;/a\#if defined(CONFIG_KSU) \&\& defined(CONFIG_KSU_SUSFS)\n\t(void)ksu_handle_setresuid(ruid, euid, suid);\n#endif\n' kernel/sys.c
                 else
-                    sed -i '/kuid_t kruid, keuid, ksuid;/a\#ifdef CONFIG_KSU\n\t(void)ksu_handle_setresuid(ruid, euid, suid);\n#endif\n' kernel/sys.c
+                    sed -i '/kuid_t kruid, keuid, ksuid;/a\#if defined(CONFIG_KSU) \&\& defined(CONFIG_KSU_SUSFS)\n\t(void)ksu_handle_setresuid(ruid, euid, suid);\n#endif\n' kernel/sys.c
                 fi
             else
-                sed -i '/^SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)/i\#ifdef CONFIG_KSU\nextern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n#endif\n' kernel/sys.c
-                sed -i '/kuid_t kruid, keuid, ksuid;/a\#ifdef CONFIG_KSU\n\t(void)ksu_handle_setresuid(ruid, euid, suid);\n#endif\n' kernel/sys.c
+                sed -i '/^SYSCALL_DEFINE3(setresuid, uid_t, ruid, uid_t, euid, uid_t, suid)/i\#if defined(CONFIG_KSU) \&\& defined(CONFIG_KSU_SUSFS)\nextern int ksu_handle_setresuid(uid_t ruid, uid_t euid, uid_t suid);\n#endif\n' kernel/sys.c
+                sed -i '/kuid_t kruid, keuid, ksuid;/a\#if defined(CONFIG_KSU) \&\& defined(CONFIG_KSU_SUSFS)\n\t(void)ksu_handle_setresuid(ruid, euid, suid);\n#endif\n' kernel/sys.c
             fi
 
             if grep -q "ksu_handle_setresuid" "kernel/sys.c"; then

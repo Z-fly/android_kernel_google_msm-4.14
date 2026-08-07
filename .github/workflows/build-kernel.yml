@@ -158,6 +158,13 @@ jobs:
           test -L drivers/kernelsu
           test "$(readlink drivers/kernelsu)" = "../KernelSU/kernel"
 
+          # SukiSU's builtin branch currently calls 5.10-only SELinux-hide
+          # helpers on older kernels and passes a pointer where Linux 4.14
+          # expects user_arg_ptr by value. Keep SUSFS disabled and apply only
+          # the compatibility fixes required by this kernel.
+          git -C KernelSU apply \
+            "$GITHUB_WORKSPACE/.github/sukisu-fixes/sukisu-no-susfs-4.14.patch"
+
       - name: Configure kernel
         run: |
           export PATH="$MISC_PREBUILTS/libufdt:$MISC_PREBUILTS/lz4:$GITHUB_WORKSPACE/toolchains/clang/$CLANG_VERSION/bin:$GITHUB_WORKSPACE/toolchains/gcc64/bin:$GITHUB_WORKSPACE/toolchains/gcc32/bin:$PATH"
