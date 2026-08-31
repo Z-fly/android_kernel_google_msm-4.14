@@ -113,8 +113,7 @@ jobs:
           rm -rf "$KERNELSU_DIR"
 
           if [ -z "$KERNELSU_REF" ]; then
-            git clone --depth=1 --single-branch --branch stable \
-              "$KERNELSU_REPOSITORY" "$KERNELSU_DIR"
+            git clone --depth=1 --single-branch --branch stable "$KERNELSU_REPOSITORY" "$KERNELSU_DIR"
           else
             git init -q "$KERNELSU_DIR"
             git -C "$KERNELSU_DIR" remote add origin "$KERNELSU_REPOSITORY"
